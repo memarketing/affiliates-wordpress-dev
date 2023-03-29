@@ -1,0 +1,3 @@
+verfvoorraad.localhost {
+	reverse_proxy wordpress-verfvoorraad:8080
+}

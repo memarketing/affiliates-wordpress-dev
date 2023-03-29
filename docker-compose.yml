@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+    networks:
+      net:
+        aliases:
+          - verfvoorraad.localhost
+
+  wordpress-verfvoorraad:
+    build: ./config/verfvoorraad
+    restart: always
+    depends_on:
+      - wordpress-mysql-verfvoorraad
+    networks:
+      net:
+        aliases:
+          - verfvoorraad.localhost
+    environment:
+      APP_ENV: development
+      WORDPRESS_DB_HOST: wordpress-mysql-verfvoorraad
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+      WORDPRESS_DEBUG: 1
+      WP_ENVIRONMENT_TYPE: development
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_SITEURL', 'https://' . $$_SERVER['HTTP_HOST']);
+        define('WP_HOME', 'https://' . $$_SERVER['HTTP_HOST']);
+        # define('WP_SENTRY_PHP_DSN', 'https://9f1e2a1b17a84581bbccb8cea140e7f5@o283739.ingest.sentry.io/6517541');
+    volumes:
+      - ./config/verfvoorraad/ports.conf:/etc/apache2/ports.conf
+      - ./config/verfvoorraad/000-default.conf:/etc/apache2/sites-available/000-default.conf
+      # - ./config/verfvoorraad/.htaccess:/var/www/html/.htaccess
+      - verfvoorraad:/var/www/html
+      - ./verfvoorraad/themes:/var/www/html/wp-content/themes
+      - ./verfvoorraad/plugins:/var/www/html/wp-content/plugins
+
+  wordpress-mysql-verfvoorraad:
+    image: mysql:5.7
+    restart: always
+    ports:
+       - 3306:3306
+    networks:
+      - net
+    environment:
+      MYSQL_DATABASE: ${WORDPRESS_DB_NAME}
+      MYSQL_USER: ${WORDPRESS_DB_USER}
+      MYSQL_PASSWORD: ${WORDPRESS_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u $$MYSQL_USER --password=$$MYSQL_PASSWORD
+      interval: 2s
+      timeout: 2s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  verfvoorraad:
+  caddy-data:
+
+networks:
+  net:
